@@ -375,7 +375,7 @@ export default function App() {
                 <div className="flex items-center gap-2">
                   <TrendingUp className="text-emerald-500" size={20} />
                   <h2 className="text-xl font-bold">BTC/USD</h2>
-                  <span className="text-xs bg-white/5 px-2 py-1 rounded text-[#8E9299]">Mercado OTC</span>
+                  <span className="text-xs bg-emerald-500/10 px-2 py-1 rounded text-emerald-500 border border-emerald-500/20">Mercado Real (Binance)</span>
                 </div>
                 <div className="text-right">
                   <div className="text-2xl font-mono font-bold text-emerald-500">

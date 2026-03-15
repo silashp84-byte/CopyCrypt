@@ -225,6 +225,12 @@ export default function App() {
     return unsubscribe;
   }, [authUser]);
 
+  const playAlert = () => {
+    const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
+    audio.volume = 0.5;
+    audio.play().catch(e => console.log('Audio playback blocked until user interaction:', e));
+  };
+
   // Trading Loop: Every minute
   useEffect(() => {
     const runAnalysis = async () => {
@@ -258,6 +264,7 @@ export default function App() {
           });
           // Create trade
           await setDoc(doc(db, 'trades', tradeId), newTrade);
+          playAlert();
         } catch (err) {
           handleFirestoreError(err, OperationType.WRITE, `trades/${tradeId}`);
         }

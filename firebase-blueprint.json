@@ -1,0 +1,44 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "User profile and balance information",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "description": "Unique user ID" },
+        "balance": { "type": "number", "description": "Current virtual balance" },
+        "displayName": { "type": "string", "description": "User's display name" },
+        "photoURL": { "type": "string", "description": "User's profile photo URL" }
+      },
+      "required": ["uid", "balance", "displayName"]
+    },
+    "Trade": {
+      "title": "Trade",
+      "description": "A single trading operation",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "type": { "type": "string", "enum": ["BUY", "SELL"] },
+        "entryPrice": { "type": "number" },
+        "exitPrice": { "type": "number" },
+        "amount": { "type": "number" },
+        "timestamp": { "type": "number" },
+        "expiry": { "type": "number" },
+        "status": { "type": "string", "enum": ["open", "won", "lost"] },
+        "asset": { "type": "string" },
+        "uid": { "type": "string", "description": "Owner of the trade" }
+      },
+      "required": ["id", "type", "entryPrice", "amount", "timestamp", "expiry", "status", "asset", "uid"]
+    }
+  },
+  "firestore": {
+    "users/{uid}": {
+      "schema": "UserProfile",
+      "description": "User profile documents"
+    },
+    "trades/{tradeId}": {
+      "schema": "Trade",
+      "description": "Trading history"
+    }
+  }
+}

@@ -28,4 +28,5 @@ export interface UserProfile {
   balance: number;
   displayName: string;
   photoURL?: string;
+  goalsReached: number;
 }

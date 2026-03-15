@@ -101,7 +101,8 @@ export default function App() {
             const newProfile: UserProfile = {
               uid: user.uid,
               balance: 10000,
-              displayName: user.displayName || 'Trader'
+              displayName: user.displayName || 'Trader',
+              goalsReached: 0
             };
             await setDoc(userRef, newProfile);
             setUserProfile(newProfile);
@@ -187,7 +188,8 @@ export default function App() {
               : point.close < trade.entryPrice;
             
             const status = win ? 'won' : 'lost';
-            const profit = win ? trade.amount * 1.85 : 0;
+            // 2:1 logic: profit is 2x the amount (100% profit)
+            const profit = win ? trade.amount * 2 : 0;
             
             try {
               // Update trade status
@@ -198,8 +200,18 @@ export default function App() {
 
               // Update balance if won
               if (win && userProfileRef.current) {
+                let newBalance = userProfileRef.current.balance + profit;
+                let newGoalsReached = userProfileRef.current.goalsReached || 0;
+
+                // Check for 1M goal
+                if (newBalance >= 1000000) {
+                  newBalance = 10000; // Reset to initial
+                  newGoalsReached += 1;
+                }
+
                 await updateDoc(doc(db, 'users', authUser.uid), {
-                  balance: userProfileRef.current.balance + profit
+                  balance: newBalance,
+                  goalsReached: newGoalsReached
                 });
               }
             } catch (err) {
@@ -324,9 +336,12 @@ export default function App() {
                 </div>
                 <div className="flex items-center gap-3 bg-emerald-500/10 border border-emerald-500/20 px-4 py-2 rounded-xl">
                   <Wallet size={18} className="text-emerald-500" />
-                  <span className="font-mono font-bold text-emerald-500">
-                    ${userProfile?.balance.toLocaleString(undefined, { minimumFractionDigits: 2 }) || '0.00'}
-                  </span>
+                  <div className="flex flex-col">
+                    <span className="font-mono font-bold text-emerald-500">
+                      ${userProfile?.balance.toLocaleString(undefined, { minimumFractionDigits: 2 }) || '0.00'}
+                    </span>
+                    <span className="text-[8px] text-emerald-500/70 uppercase font-bold">Metas: {userProfile?.goalsReached || 0}</span>
+                  </div>
                 </div>
                 <button 
                   onClick={handleLogout}
@@ -386,6 +401,23 @@ export default function App() {
               </div>
 
               <Chart data={marketData} />
+
+              {/* Price Info Grid */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                {[
+                  { label: 'Abertura', value: marketData[marketData.length - 1]?.open, color: 'text-white' },
+                  { label: 'Máxima', value: marketData[marketData.length - 1]?.high, color: 'text-emerald-500' },
+                  { label: 'Mínima', value: marketData[marketData.length - 1]?.low, color: 'text-rose-500' },
+                  { label: 'Fechamento', value: marketData[marketData.length - 1]?.close, color: 'text-white' },
+                ].map((item) => (
+                  <div key={item.label} className="bg-[#151619] border border-white/5 p-4 rounded-xl">
+                    <div className="text-[10px] text-[#8E9299] uppercase font-bold mb-1">{item.label}</div>
+                    <div className={`font-mono text-lg font-bold ${item.color}`}>
+                      ${item.value?.toFixed(2) || '0.00'}
+                    </div>
+                  </div>
+                ))}
+              </div>
 
               <div className="bg-[#151619] border border-white/5 rounded-xl p-6 relative overflow-hidden">
                 <div className="flex items-center gap-4 mb-4">

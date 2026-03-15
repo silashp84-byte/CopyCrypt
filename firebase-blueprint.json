@@ -8,9 +8,10 @@
         "uid": { "type": "string", "description": "Unique user ID" },
         "balance": { "type": "number", "description": "Current virtual balance" },
         "displayName": { "type": "string", "description": "User's display name" },
-        "photoURL": { "type": "string", "description": "User's profile photo URL" }
+        "photoURL": { "type": "string", "description": "User's profile photo URL" },
+        "goalsReached": { "type": "number", "description": "Number of times the 1M goal was reached" }
       },
-      "required": ["uid", "balance", "displayName"]
+      "required": ["uid", "balance", "displayName", "goalsReached"]
     },
     "Trade": {
       "title": "Trade",

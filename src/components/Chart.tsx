@@ -7,33 +7,30 @@ interface Props {
 }
 
 const Candle = (props: any) => {
-  const { x, y, width, height, open, close, high, low } = props;
+  const { x, y, width, height, payload, yAxis } = props;
+  if (!payload || !yAxis) return null;
+  
+  const { open, close, high, low } = payload;
   const isUp = close >= open;
   const color = isUp ? '#10b981' : '#ef4444';
   
-  // If open and close are the same, height is 0. We need a minimum height for the body
-  const bodyHeight = Math.max(height, 1);
-  const bodyY = height < 1 ? y - 0.5 : y;
+  // Use yAxis scale for accurate pixel positions
+  const scale = yAxis.scale;
+  const yOpen = scale(open);
+  const yClose = scale(close);
+  const yHigh = scale(high);
+  const yLow = scale(low);
 
-  // We need to calculate the wick positions. 
-  // Since we don't have the scale, we can estimate the ratio from the body if height > 0
-  // A better way is to pass the scale or use a different approach.
-  // But for this simulation, we can use the body ratio or a fallback.
-  const priceDiff = Math.abs(open - close);
-  const ratio = priceDiff > 0 ? height / priceDiff : 0;
-  
-  // If ratio is 0 (open == close), we can't draw wicks accurately this way.
-  // However, in our simulation, priceDiff is almost never 0.
-  const wickHigh = ratio > 0 ? bodyY - (high - Math.max(open, close)) * ratio : bodyY;
-  const wickLow = ratio > 0 ? bodyY + bodyHeight + (Math.min(open, close) - low) * ratio : bodyY + bodyHeight;
+  const bodyY = Math.min(yOpen, yClose);
+  const bodyHeight = Math.max(Math.abs(yOpen - yClose), 1);
 
   return (
     <g>
       <line 
         x1={x + width / 2} 
-        y1={wickHigh} 
+        y1={yHigh} 
         x2={x + width / 2} 
-        y2={wickLow} 
+        y2={yLow} 
         stroke={color} 
         strokeWidth={1} 
       />

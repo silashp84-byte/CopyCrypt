@@ -174,7 +174,16 @@ export default function App() {
     setMarketData(marketService.getHistory());
     
     const unsubscribe = marketService.subscribe(async (point) => {
-      setMarketData(prev => [...prev.slice(-199), point]);
+      setMarketData(prev => {
+        if (prev.length === 0) return [point];
+        const last = prev[prev.length - 1];
+        if (last.time === point.time) {
+          const newHistory = [...prev];
+          newHistory[newHistory.length - 1] = point;
+          return newHistory;
+        }
+        return [...prev.slice(-199), point];
+      });
       
       // Check for expired trades
       const now = Date.now();

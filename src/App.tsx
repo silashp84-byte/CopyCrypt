@@ -67,6 +67,7 @@ export default function App() {
   
   const tradesRef = useRef<Trade[]>([]);
   const userProfileRef = useRef<UserProfile | null>(null);
+  const processingTrades = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     tradesRef.current = trades;
@@ -183,7 +184,7 @@ export default function App() {
           newHistory[newHistory.length - 1] = point;
           return newHistory;
         }
-        return [...prev.slice(-199), point];
+        return [...prev.slice(-999), point];
       });
       
       // Check for expired trades
@@ -192,13 +193,14 @@ export default function App() {
       
       if (openTrades.length > 0 && authUser) {
         for (const trade of openTrades) {
-          if (now >= trade.expiry) {
+          if (now >= trade.expiry && !processingTrades.current.has(trade.id)) {
+            processingTrades.current.add(trade.id);
+            
             const win = trade.type === 'BUY' 
               ? point.close > trade.entryPrice 
               : point.close < trade.entryPrice;
             
             const status = win ? 'won' : 'lost';
-            // 2:1 logic: profit is 2x the amount (100% profit)
             const profit = win ? trade.amount * 2 : 0;
             
             try {
@@ -210,21 +212,25 @@ export default function App() {
 
               // Update balance if won
               if (win && userProfileRef.current) {
-                let newBalance = userProfileRef.current.balance + profit;
+                const newBalance = userProfileRef.current.balance + profit;
                 let newGoalsReached = userProfileRef.current.goalsReached || 0;
 
-                // Check for 1M goal
                 if (newBalance >= 1000000) {
-                  newBalance = 10000; // Reset to initial
-                  newGoalsReached += 1;
+                  await updateDoc(doc(db, 'users', authUser.uid), {
+                    balance: 10000,
+                    goalsReached: newGoalsReached + 1
+                  });
+                } else {
+                  await updateDoc(doc(db, 'users', authUser.uid), {
+                    balance: newBalance
+                  });
                 }
-
-                await updateDoc(doc(db, 'users', authUser.uid), {
-                  balance: newBalance,
-                  goalsReached: newGoalsReached
-                });
               }
+              
+              // Remove from processing after successful update
+              setTimeout(() => processingTrades.current.delete(trade.id), 2000);
             } catch (err) {
+              processingTrades.current.delete(trade.id);
               handleFirestoreError(err, OperationType.UPDATE, `trades/${trade.id}`);
             }
           }
@@ -247,12 +253,17 @@ export default function App() {
       if (!authUser || !userProfileRef.current) return;
 
       setIsAnalyzing(true);
-      setAiThought('Analisando padrões de velas e volume dos últimos 60 segundos...');
-      const decision = await tradingService.analyzeAndTrade();
-      setIsAnalyzing(false);
+      setAiThought('Coletando dados do livro de ordens e histórico de preços...');
+      await new Promise(r => setTimeout(r, 2000));
+      
+      setAiThought('Calculando indicadores técnicos (RSI, MACD, Médias Móveis)...');
+      await new Promise(r => setTimeout(r, 2000));
 
-      if (decision && userProfileRef.current.balance >= 100) {
-        setAiThought(`Análise concluída: Tendência de ${decision === 'BUY' ? 'ALTA' : 'BAIXA'} detectada. Abrindo operação...`);
+      setAiThought('Processando padrões de velas com rede neural Gemini...');
+      const decision = await tradingService.analyzeAndTrade();
+      
+      if (decision && userProfileRef.current && userProfileRef.current.balance >= 100) {
+        setAiThought(`Oportunidade de ${decision === 'BUY' ? 'ALTA' : 'BAIXA'} identificada! Abrindo posição...`);
         const amount = 100;
         const tradeId = Math.random().toString(36).substr(2, 9);
         const newTrade: Trade = {
@@ -275,11 +286,17 @@ export default function App() {
           // Create trade
           await setDoc(doc(db, 'trades', tradeId), newTrade);
           playAlert();
+          setTimeout(() => {
+            setIsAnalyzing(false);
+            setAiThought('Operação aberta com sucesso. Monitorando expiração...');
+          }, 1000);
         } catch (err) {
+          setIsAnalyzing(false);
           handleFirestoreError(err, OperationType.WRITE, `trades/${tradeId}`);
         }
-      } else if (!decision) {
-        setAiThought('Análise inconclusiva. Aguardando próxima oportunidade.');
+      } else {
+        setIsAnalyzing(false);
+        setAiThought(decision ? 'Saldo insuficiente para operar.' : 'Mercado lateralizado. Nenhuma entrada segura detectada.');
       }
     };
 

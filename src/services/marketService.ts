@@ -13,7 +13,7 @@ class MarketService {
   private async init() {
     try {
       // Fetch initial history from Binance
-      const response = await fetch('https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=1m&limit=100');
+      const response = await fetch('https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=1m&limit=500');
       const data = await response.json();
       
       this.history = data.map((d: any) => ({
@@ -61,7 +61,7 @@ class MarketService {
         this.history[lastIndex] = point;
       } else {
         this.history.push(point);
-        if (this.history.length > 200) this.history.shift();
+        if (this.history.length > 1000) this.history.shift();
       }
 
       this.listeners.forEach(l => l(point));

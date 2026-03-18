@@ -47,27 +47,19 @@ service cloud.firestore {
 
     function isAdmin() {
       return isAuthenticated() &&
-        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
-          (request.auth.token.email == "silas.hp84@gmail.com" && request.auth.token.email_verified == true));
+        (request.auth.token.email == "silas.hp84@gmail.com" && request.auth.token.email_verified == true);
     }
 
     function isValidUser(data) {
-      return data.keys().hasAll(['uid', 'balance', 'displayName', 'goalsReached']) &&
-             data.uid is string &&
+      return data.uid is string &&
              data.balance is number &&
-             data.displayName is string &&
-             data.displayName.size() > 0 && data.displayName.size() < 100 &&
-             data.goalsReached is number &&
-             (!('photoURL' in data) || (data.photoURL is string && data.photoURL.size() < 500));
+             data.displayName is string;
     }
 
     function isValidTrade(data) {
-      return data.keys().hasAll(['id', 'type', 'entryPrice', 'amount', 'timestamp', 'expiry', 'status', 'asset', 'uid']) &&
-             data.type in ['BUY', 'SELL'] &&
+      return data.type in ['BUY', 'SELL'] &&
              data.status in ['open', 'won', 'lost'] &&
-             data.amount is number && data.amount > 0 &&
-             data.entryPrice is number &&
-             data.asset is string &&
+             data.amount is number &&
              data.uid == request.auth.uid;
     }
 
@@ -77,14 +69,14 @@ service cloud.firestore {
 
     match /users/{userId} {
       allow read: if isOwner(userId) || isAdmin();
-      allow create: if isOwner(userId) && isValidUser(request.resource.data) && (!('role' in request.resource.data) || isAdmin());
-      allow update: if (isOwner(userId) && isValidUser(request.resource.data) && request.resource.data.role == resource.data.role) || isAdmin();
+      allow create: if isOwner(userId) && isValidUser(request.resource.data);
+      allow update: if isOwner(userId) || isAdmin();
     }
 
     match /trades/{tradeId} {
       allow read: if isDocOwner() || isAdmin();
       allow create: if isAuthenticated() && isValidTrade(request.resource.data);
-      allow update: if (isDocOwner() && isValidTrade(request.resource.data)) || isAdmin();
+      allow update: if isDocOwner() || isAdmin();
     }
   }
 }

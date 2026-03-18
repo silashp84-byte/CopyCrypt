@@ -140,12 +140,13 @@ export default function App() {
     const q = query(
       collection(db, 'trades'),
       where('uid', '==', authUser.uid),
-      orderBy('timestamp', 'desc'),
       limit(50)
     );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      const fetchedTrades = snapshot.docs.map(doc => doc.data() as Trade);
+      const fetchedTrades = snapshot.docs
+        .map(doc => doc.data() as Trade)
+        .sort((a, b) => b.timestamp - a.timestamp); // Sort client-side to avoid index requirement
       setTrades(fetchedTrades);
     }, (err) => {
       handleFirestoreError(err, OperationType.LIST, 'trades');

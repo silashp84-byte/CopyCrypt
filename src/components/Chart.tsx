@@ -1,111 +1,97 @@
-import React, { useMemo } from 'react';
-import { ResponsiveContainer, ComposedChart, XAxis, YAxis, Tooltip, CartesianGrid, Bar, Cell } from 'recharts';
+import React, { useEffect, useRef } from 'react';
+import { createChart, ColorType, IChartApi, ISeriesApi } from 'lightweight-charts';
 import { MarketPoint } from '../types';
 
 interface Props {
   data: MarketPoint[];
 }
 
-const Candle = (props: any) => {
-  const { x, y, width, height, payload, yAxis } = props;
-  if (!payload || !yAxis) return null;
-  
-  const { open, close, high, low } = payload;
-  const isUp = close >= open;
-  const color = isUp ? '#10b981' : '#ef4444';
-  
-  // Use yAxis scale for accurate pixel positions
-  const scale = yAxis.scale;
-  const yOpen = scale(open);
-  const yClose = scale(close);
-  const yHigh = scale(high);
-  const yLow = scale(low);
-
-  const bodyY = Math.min(yOpen, yClose);
-  const bodyHeight = Math.max(Math.abs(yOpen - yClose), 1);
-
-  return (
-    <g>
-      <line 
-        x1={x + width / 2} 
-        y1={yHigh} 
-        x2={x + width / 2} 
-        y2={yLow} 
-        stroke={color} 
-        strokeWidth={1} 
-      />
-      <rect 
-        x={x} 
-        y={bodyY} 
-        width={width} 
-        height={bodyHeight} 
-        fill={color} 
-      />
-    </g>
-  );
-};
-
 const Chart: React.FC<Props> = ({ data }) => {
-  const domain = useMemo(() => {
-    if (data.length === 0) return [0, 0];
-    const highs = data.map(d => d.high);
-    const lows = data.map(d => d.low);
-    const min = Math.min(...lows);
-    const max = Math.max(...highs);
-    const padding = (max - min) * 0.1;
-    return [min - padding, max + padding];
-  }, [data]);
+  const chartContainerRef = useRef<HTMLDivElement>(null);
+  const chartRef = useRef<IChartApi | null>(null);
+  const seriesRef = useRef<ISeriesApi<'Candlestick'> | null>(null);
 
-  // Prepare data for Recharts Bar
-  // We want the bar to represent the body (open to close)
-  const chartData = useMemo(() => {
-    return data.map(d => ({
-      ...d,
-      // Bar expects [start, end] for range or just a value
-      // We'll use a range [min(open, close), max(open, close)]
-      body: [Math.min(d.open, d.close), Math.max(d.open, d.close)],
-    }));
+  useEffect(() => {
+    if (!chartContainerRef.current) return;
+
+    const chart = createChart(chartContainerRef.current, {
+      layout: {
+        background: { type: ColorType.Solid, color: '#151619' },
+        textColor: '#8E9299',
+      },
+      grid: {
+        vertLines: { color: '#ffffff05' },
+        horzLines: { color: '#ffffff05' },
+      },
+      width: chartContainerRef.current.clientWidth,
+      height: 400,
+      timeScale: {
+        timeVisible: true,
+        secondsVisible: false,
+      },
+    });
+
+    const series = (chart as any).addCandlestickSeries({
+      upColor: '#10b981',
+      downColor: '#ef4444',
+      borderVisible: false,
+      wickUpColor: '#10b981',
+      wickDownColor: '#ef4444',
+    });
+
+    chartRef.current = chart;
+    seriesRef.current = series as any;
+
+    const handleResize = () => {
+      if (chartContainerRef.current) {
+        chart.applyOptions({ width: chartContainerRef.current.clientWidth });
+      }
+    };
+
+    window.addEventListener('resize', handleResize);
+
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      chart.remove();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (seriesRef.current && data.length > 0) {
+      const formattedData = data.map(d => ({
+        time: (d.time / 1000) as any, // Convert ms to seconds
+        open: d.open,
+        high: d.high,
+        low: d.low,
+        close: d.close,
+      }));
+      
+      // Sort data by time to ensure it's in order
+      formattedData.sort((a, b) => a.time - b.time);
+      
+      // Remove duplicates
+      const uniqueData = formattedData.filter((val, index, self) => 
+        index === self.findIndex((t) => t.time === val.time)
+      );
+
+      (seriesRef.current as any).setData(uniqueData);
+    }
   }, [data]);
 
   return (
-    <div className="h-[400px] w-full bg-[#151619] rounded-xl p-4 border border-white/5 shadow-2xl">
-      <ResponsiveContainer width="100%" height="100%">
-        <ComposedChart data={chartData}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#ffffff10" vertical={false} />
-          <XAxis 
-            dataKey="time" 
-            hide 
-          />
-          <YAxis 
-            domain={domain} 
-            orientation="right" 
-            tick={{ fill: '#8E9299', fontSize: 12 }}
-            axisLine={false}
-            tickLine={false}
-            tickFormatter={(val) => val.toFixed(2)}
-          />
-          <Tooltip 
-            contentStyle={{ backgroundColor: '#151619', border: '1px solid #ffffff10', borderRadius: '8px' }}
-            itemStyle={{ color: '#00FF00' }}
-            labelStyle={{ display: 'none' }}
-            formatter={(value: any, name: string, props: any) => {
-              if (name === 'body') {
-                const { open, close, high, low } = props.payload;
-                return [
-                  `O: ${open.toFixed(2)} H: ${high.toFixed(2)} L: ${low.toFixed(2)} C: ${close.toFixed(2)}`,
-                  'Price'
-                ];
-              }
-              return [value, name];
-            }}
-          />
-          <Bar 
-            dataKey="body" 
-            shape={<Candle />}
-            isAnimationActive={false}
-          />
-        </ComposedChart>
-      </ResponsiveContainer>
+    <div className="relative w-full">
+      <div 
+        ref={chartContainerRef} 
+        className="h-[400px] w-full bg-[#151619] rounded-xl overflow-hidden border border-white/5 shadow-2xl"
+      />
+      {(!data || data.length === 0) && (
+        <div className="absolute inset-0 flex items-center justify-center bg-[#151619]/80 rounded-xl">
+          <div className="text-center">
+            <div className="w-8 h-8 border-2 border-emerald-500/20 border-t-emerald-500 rounded-full animate-spin mx-auto mb-2" />
+            <p className="text-[#8E9299] text-xs font-mono">Carregando mercado...</p>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
